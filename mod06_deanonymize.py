@@ -18,23 +18,12 @@ def link_records(anon_df, aux_df):
       anon_id, matched_name
     containing ONLY uniquely matched records.
     """
-    anon_columns = set(anon_df.columns)
-    aux_columns = set(aux_df.columns)
-
-    anon_columns.discard('anon_id')
-    aux_columns.discard('name')
-
-    matching_columns = anon_columns.intersection(aux_columns)
-
-    merge = pd.merge(anon_df, aux_df, on=matching_columns, how='inner')
-    count = merge.groupby('anon_id').size()
-    unique_matches = count[count == 1].index
-
-    matches_df = merge[merge['anon_id'].isin(unique_matches)][['anon_id', 'name']]
-    matches_df.rename(columns={'name': 'matched_name'}, inplace=True)
-
-    return matches_df
-
+    quasi_identifiers = ['age', 'gender', 'zip3']
+    merged = pd.merge(anon_df, aux_df, on=quasi_identifiers, how='inner') #merge datasets on quasi-identifiers
+    match_counts_anon = merged.groupby('anon_id')['anon_id'].transform('count') #
+    match_counts_aux = merged.groupby('name')['name'].transform('count')
+    unique_matches = merged[(match_counts_anon == 1) & (match_counts_aux)].copy()
+    return unique_matches[['anon_id', 'name']].rename(columns={'name': 'matched_name'})
 
 def deanonymization_rate(matches_df, anon_df):
     """
@@ -42,5 +31,9 @@ def deanonymization_rate(matches_df, anon_df):
     that were uniquely re-identified.
     """
     total_anon_records = len(anon_df)
-    return len(matches_df) / total_anon_records if total_anon_records > 0 else 0
+    if total_anon_records > 0:
+        return len(matches_df) / total_anon_records 
+    
+    else: 
+        return 0.0
 
